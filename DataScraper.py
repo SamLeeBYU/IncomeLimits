@@ -2,6 +2,8 @@ import os
 import pandas
 from bs4 import BeautifulSoup
 import requests
+import time
+from selenium import webdriver
 
 ## TODO:
 
@@ -11,8 +13,16 @@ import requests
 #Scrape the county information as well upon post form transcation
 ## store values into tables
 
+VIEWTIME = 3
 
-class DataScraper:
+def parseData(year, state, county, html, driver, delay=False):
 
-    def __init__(self):
-        pass
+    print(f"Reading data for {county.get('name')}...")
+
+    soup = BeautifulSoup(html, 'html.parser')
+    #print(soup)
+
+    time.sleep(VIEWTIME)
+
+    #After parsing the html go back and keep running through the program
+    driver.back()

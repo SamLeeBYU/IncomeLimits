@@ -1,5 +1,4 @@
 import User
-import DataScraper
 
 #TODO:
 
