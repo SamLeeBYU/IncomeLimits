@@ -51,4 +51,4 @@ class main:
             User.run("https://www.huduser.gov/portal/datasets/il.html#" + str(year), year, delay)
 
 program = main(start=2022, end=2014) #The end goal is scrape through all levels 1990-2022, but years 2014-2022 are in the most standardized format
-program.run(delay=True)
+program.run(delay=False)
