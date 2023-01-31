@@ -59,7 +59,7 @@ def parseData(year, state, county, html, driver, delay=False):
     #Permanently saving the data each time we scrape the data just off one table is too costly, and saving the data at the very end:
     #   3,000+ counties in the U.S. * each year we're parsing when we finally run this program = nearly 100,000!
 
-
+    data = {}
 
 
     #After parsing the html go back and keep running through the program
