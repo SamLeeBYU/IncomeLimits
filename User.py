@@ -15,7 +15,6 @@ wait = WebDriverWait(driver, 10)
 
 VIEWTIME = 3
 
-
 ## TODO:
 
 def phase_1(year):
@@ -34,48 +33,83 @@ def phase_1(year):
     driver.execute_script("window.changeInputs(arguments[0]);", year)
     driver.execute_script("window.submit();")
 
-def phase_2(year, delay=False):
+def phase_2(year, delay=False, i=0, county_index=0):
     print("Phase 2 - Bypassing Form 2")
     print("Selecting a state/territory...")
 
     states = driver.find_elements(By.CSS_SELECTOR, "select[name='STATES']")[0]
     options = states.find_elements(By.TAG_NAME, "option")
 
-    #loop through options
-    for i in range(0, len(options)):
+    #By definiting i through the function definition, we can keep track of where we are in the DataScraper.py
+    #   such that User.py doesn't get ahead of the DataScraper as both of the scripts are doing their own things.
+    #In essense, we're creating a codependency.
 
-        #redefine the DOM elements for the Selenium driver so the element doesn't become stale
-        states = driver.find_elements(By.CSS_SELECTOR, "select[name='STATES']")[0]
-        options = states.find_elements(By.TAG_NAME, "option")
+    #Make sure the option is visible before the "user" selects it
+    actions.move_to_element(options[i])
+    actions.perform()
 
-        #Make sure the option is visible before the "user" selects it
-        actions.move_to_element(options[i])
-        actions.perform()
+    stateName = options[i].text
+    state_index = i
 
-        stateName = options[i].text
-        state_index = i
+    print("Fetching data for " + stateName + "...")
+    print()
 
-        print("Fetching data for " + stateName + "...")
-        print()
+    #Select the option
+    driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
+    #Execute the website's own GetCounties() function to request the county list from the database
+    driver.execute_script("GetCounties();", states)
 
-        #Select the option
-        driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
-        #Execute the website's own GetCounties() function to request the county list from the database
-        driver.execute_script("GetCounties();", states)
-
-        if delay:
-            time.sleep(VIEWTIME/3)
+    if delay:
+        time.sleep(VIEWTIME/3)
 
 
-        if stateName != "U.S. Non-Metropolitan Median":
-            #we don't want this generalized value, we only want counties and MSAs
+    if stateName != "U.S. Non-Metropolitan Median":
+        #we don't want this generalized value, we only want counties and MSAs
 
-            #Start iterating over the counties generated
+        #Start iterating over the counties generated
 
-            #We pass the index through the function too (through a dictionary) so we can keep track of the data we are iterating over
-            phase_3(year, {"name": stateName, "index": state_index}, delay)
+        #We pass the index through the function too (through a dictionary) so we can keep track of the data we are iterating over
+        phase_3(year, {"name": stateName, "index": state_index}, delay, i=county_index)
 
-def phase_3(year, state, delay):
+    else:
+        #We've reached the end of the rope and that's the end of phase 2
+        print(f"Completed Data Retrieval for {year}.")
+
+    # #loop through options
+    # for i in range(0, len(options)):
+    #
+    #     #redefine the DOM elements for the Selenium driver so the element doesn't become stale
+    #     states = driver.find_elements(By.CSS_SELECTOR, "select[name='STATES']")[0]
+    #     options = states.find_elements(By.TAG_NAME, "option")
+    #
+    #     #Make sure the option is visible before the "user" selects it
+    #     actions.move_to_element(options[i])
+    #     actions.perform()
+    #
+    #     stateName = options[i].text
+    #     state_index = i
+    #
+    #     print("Fetching data for " + stateName + "...")
+    #     print()
+    #
+    #     #Select the option
+    #     driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
+    #     #Execute the website's own GetCounties() function to request the county list from the database
+    #     driver.execute_script("GetCounties();", states)
+    #
+    #     if delay:
+    #         time.sleep(VIEWTIME/3)
+    #
+    #
+    #     if stateName != "U.S. Non-Metropolitan Median":
+    #         #we don't want this generalized value, we only want counties and MSAs
+    #
+    #         #Start iterating over the counties generated
+    #
+    #         #We pass the index through the function too (through a dictionary) so we can keep track of the data we are iterating over
+    #         phase_3(year, {"name": stateName, "index": state_index}, delay)
+
+def phase_3(year, state, delay, i=0):
 
     print(f"Phase 3 - Bypassing Form 3 ({state.get('name')})")
     print("Selecting a county...")
@@ -83,46 +117,96 @@ def phase_3(year, state, delay):
     counties = driver.find_elements(By.CSS_SELECTOR, "select[name='INPUTNAME']")[0]
     options = counties.find_elements(By.TAG_NAME, "option")
 
-    #loop through options
-    for i in range(0, len(options)):
+    #Similar to phase 2, by definiting i through the function definition, we can keep track of where we are in the DataScraper.py
+    #   such that User.py doesn't get ahead of the DataScraper as both of the scripts are doing their own things.
+    #In essense, we're creating a codependency.
+    #**THIS KEEPS SELENIUM FROM FREEZING**
 
-        #redefine the DOM elements for the Selenium driver so the element doesn't become stale
-        counties = driver.find_elements(By.CSS_SELECTOR, "select[name='INPUTNAME']")[0]
-        options = counties.find_elements(By.TAG_NAME, "option")
-
-        #Make sure the option is visible before the "user" selects it
-        actions.move_to_element(options[i])
-        actions.perform()
-
-        countyName = options[i].text
-        county_index = i
-
-        print("Fetching data for " + countyName + "...")
-
-        #Select the option
-        driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
-        #Execute the website's own GetCounties() function to request the county list from the database
-        driver.execute_script("CollectAreas();", counties)
-
-        if delay:
-            time.sleep(VIEWTIME/3)
+    #The alternative would be to use for loops to iterate over the states and counties in the HTML DOM,
+    #   but this process would run independently of what happens in the DataScraper.py script;
+    #   Before this script was changed, Selenium would freeze up because User.py was submitting requests faster than DataScraper.py could parse
 
 
-        #Submit the form after selecting the county
-        submit = driver.find_elements(By.CSS_SELECTOR, "input[name='SubmitButton']")[0]
-        submit.submit()
+    #Make sure the option is visible before the "user" selects it
+    actions.move_to_element(options[i])
+    actions.perform()
 
-        #Final page with data
-        #We will read the page and send the HTML data to our DataScraper.py script
+    countyName = options[i].text
+    county_index = i
 
-        if delay:
-            time.sleep(VIEWTIME)
+    print("Fetching data for " + countyName + "...")
 
-        html = driver.page_source
+    #Select the option
+    driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
+    #Execute the website's own GetCounties() function to request the county list from the database
+    driver.execute_script("CollectAreas();", counties)
 
-        #Outsource the data to our DataScraper.py function
-        DataScraper.parseData(year, state, {"name": countyName, "index": county_index}, html, driver, delay=False)
+    if delay:
+        time.sleep(VIEWTIME/3)
 
+    #Submit the form after selecting the county
+    submit = driver.find_elements(By.CSS_SELECTOR, "input[name='SubmitButton']")[0]
+    submit.submit()
+
+    #Final page with data
+    #We will read the page and send the HTML data to our DataScraper.py script
+
+    if delay:
+        time.sleep(VIEWTIME)
+
+    html = driver.page_source
+
+    #Increment the state index if we've done all the counties--go to the next state
+    if county_index == len(options)-1:
+        state["index"] += 1
+        county_index = 0 #reset the county index
+        print(f"Completed fetching data for {state.get('name')}.")
+
+        #Save our progress after iterating through every state
+        DataScraper.save_progress()
+
+    #Outsource the data to our DataScraper.py function
+    DataScraper.parseData(year, state, {"name": countyName, "index": county_index}, html, driver, delay=delay)
+
+    # #loop through options
+    # for i in range(0, len(options)):
+    #
+    #     #redefine the DOM elements for the Selenium driver so the element doesn't become stale
+    #     counties = driver.find_elements(By.CSS_SELECTOR, "select[name='INPUTNAME']")[0]
+    #     options = counties.find_elements(By.TAG_NAME, "option")
+    #
+    #     #Make sure the option is visible before the "user" selects it
+    #     actions.move_to_element(options[i])
+    #     actions.perform()
+    #
+    #     countyName = options[i].text
+    #     county_index = i
+    #
+    #     print("Fetching data for " + countyName + "...")
+    #
+    #     #Select the option
+    #     driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
+    #     #Execute the website's own GetCounties() function to request the county list from the database
+    #     driver.execute_script("CollectAreas();", counties)
+    #
+    #     if delay:
+    #         time.sleep(VIEWTIME/3)
+    #
+    #
+    #     #Submit the form after selecting the county
+    #     submit = driver.find_elements(By.CSS_SELECTOR, "input[name='SubmitButton']")[0]
+    #     submit.submit()
+    #
+    #     #Final page with data
+    #     #We will read the page and send the HTML data to our DataScraper.py script
+    #
+    #     if delay:
+    #         time.sleep(VIEWTIME)
+    #
+    #     html = driver.page_source
+    #
+    #     #Outsource the data to our DataScraper.py function
+    #     DataScraper.parseData(year, state, {"name": countyName, "index": county_index}, html, driver, delay=False)
 
 def run(url, year, delay=False):
 
