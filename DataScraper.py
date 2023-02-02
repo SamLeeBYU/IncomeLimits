@@ -30,7 +30,7 @@ def clean(s, type="MSA"):
 
         #Get county FIPS codes
 
-        if len(parts) > 0:
+        if len(parts) > 1:
             return parts[0] + ", " + parts[1].split(" ")[0]
         else:
             #EX Alaska's "Kusilvak Census Area"
