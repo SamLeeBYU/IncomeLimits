@@ -33,7 +33,7 @@ def phase_1(year):
     driver.execute_script("window.changeInputs(arguments[0]);", year)
     driver.execute_script("window.submit();")
 
-def phase_2(year, delay=False, i=0, county_index=0):
+def phase_2(year, delay=False, i=7, county_index=0):
     print("Phase 2 - Bypassing Form 2")
     print("Selecting a state/territory...")
 
@@ -126,10 +126,14 @@ def phase_3(year, state, delay, i=0):
     #   but this process would run independently of what happens in the DataScraper.py script;
     #   Before this script was changed, Selenium would freeze up because User.py was submitting requests faster than DataScraper.py could parse
 
+    try:
+        #Make sure the option is visible before the "user" selects it
+        actions.move_to_element(options[i])
+        actions.perform()
+    except:
+        print(f"The index was {i}")
+        print(f"Here's how many options there are: {len(options)}")
 
-    #Make sure the option is visible before the "user" selects it
-    actions.move_to_element(options[i])
-    actions.perform()
 
     countyName = options[i].text
     county_index = i
@@ -160,13 +164,14 @@ def phase_3(year, state, delay, i=0):
     if county_index == len(options)-1:
         state["index"] += 1
         county_index = 0 #reset the county index
+
         print(f"Completed fetching data for {state.get('name')}.")
 
-        #Save our progress after iterating through every state
-        DataScraper.save_progress()
-
-    #Outsource the data to our DataScraper.py function
-    DataScraper.parseData(year, state, {"name": countyName, "index": county_index}, html, driver, delay=delay)
+        #Make sure we parse the data for the last county and save it
+        DataScraper.parseData(year, state, {"name": countyName, "index": county_index}, html, driver, delay=delay, save=True)
+    else:
+        #Outsource the data to our DataScraper.py function
+        DataScraper.parseData(year, state, {"name": countyName, "index": county_index}, html, driver, delay=delay)
 
     # #loop through options
     # for i in range(0, len(options)):

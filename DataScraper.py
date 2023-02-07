@@ -57,15 +57,14 @@ def catch_data(data):
     if DATA is None:
         DATA = data
     else:
-        DATA = pandas.concat([DATA, data])
-
+        DATA = pandas.concat([DATA, data]).reset_index(drop=True)
     print(DATA)
 
     print("End of Phase 3.")
     print()
 
 
-def parseData(year, state, county, html, driver, delay=False):
+def parseData(year, state, county, html, driver, delay=False, save=False):
 
     print(f"Reading data for {county.get('name')}...")
 
@@ -143,14 +142,24 @@ def parseData(year, state, county, html, driver, delay=False):
     catch_data(pandas.DataFrame(tidy_table))
 
 
-    #After parsing the html go back and keep running through the program
-    driver.back()
+    if save:
+        save_progress()
 
-    #Data has been collected
-    #Send signal back to User.py to continue its iteration
+        #After parsing the html go back and keep running through the program
+        driver.back()
 
-    #increment the county index by one to continue:
-    User.phase_2(year, delay=delay, i=state["index"], county_index=county["index"]+1)
+        #increment the county index by one to continue:
+        User.phase_2(year, delay=delay, i=state["index"], county_index=county["index"])
+
+    else:
+        #After parsing the html go back and keep running through the program
+        driver.back()
+
+        #Data has been collected
+        #Send signal back to User.py to continue its iteration
+
+        #increment the county index by one to continue:
+        User.phase_2(year, delay=delay, i=state["index"], county_index=county["index"]+1)
 
 #save the data periodically (can be called from the User.py class or from wherver)
 #The goal is the save the data when the DATA gets too large;
@@ -162,9 +171,9 @@ def save_progress():
     if os.path.exists("IncomeLimits.csv"):
         current = pandas.read_csv("IncomeLimits.csv")
         current = pandas.concat([current, DATA])
-        current.to_csv("IncomeLimits.csv")
+        current.to_csv("IncomeLimits.csv", index=False)
     else:
-        DATA.to_csv("IncomeLimits.csv")
+        DATA.to_csv("IncomeLimits.csv", index=False)
 
     print("Current progress saved to IncomeLimits.csv")
     print("Overwriting RAM...")
