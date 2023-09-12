@@ -14,11 +14,11 @@ Once the data is able to be fetched from the server as HTML, the HTML can be com
 
 This is the script that pulls in all other scripts and fires off the program. The years can be adjusted in the class instance declaration when a new instance is created to adjust how much data (what range of years) is parsed. The argument delay in the program.run function can be set to False or True to slow down the Selenium driver. Run this script to run the program.
 
-### User.py
-
 This python script contains all the user-simulated actions and events fired off via the Selenium library. To run this script (and thus the program) on your local machine, some installation of a web driver is required. Any web driver can be used (try to make it match your version of browser you're using), such as Firefox, but I use Chrome for the purposes of this project.
 
 The script runs through essentially three main processes, with each process bypassing a dynamic form. Normally, a human user would fill out a "form" (this is literally an HTML form tag) and sends this request to the server. The server responds by sending by processing the user's data on the back end and returns data that's stored on the server. We don't have immediate access to this data so we simulate user actions to force a server response to obtain the same information.
+
+As of September, 2023, I made the scraping itself OOP structured. This was mainly for optimization, organization, and error-minimization purposes. During the scraping process, sometimes there are unexpected things that happen (slow internet, bad gateway requests, just spontaneous things in the driver). Restructuring the code in this manner allowed me to catch all of these errors smoothly and restart the scraper if necessary at the appropriate spot in the program.
 
 ### forms.js
 
@@ -28,8 +28,12 @@ The *changeInputs(year)* function changes the hidden inputs on the first HTML fo
 
 ### DataScraper.py
 
-This python script parses the HTML mess on the page once the table of data is finally loaded and formats it into a readable format.
+This python script parses the HTML mess on the page once the table of data is finally loaded and formats it into a readable format. Additionally, this script saves the tables it scrapes into the RAM. In order to save time, it doesn't export the data to an external (csv) file after every scrape. Instead, it stores it in the RAM and then when it is done scraping every state (which may range anywhere from 500-3000 rows of data) it appends it to our csv file.
 
-### help.js
+### premodern.py
 
-Before *forms.js* was created, this function was created to debug why the Selenium driver wasn't able to detect the form and inputs. This served as a base script for the final *forms.js*. This now serves as a sandbox for experimenting with the DOM in case I ever need to run a test in the DOM environment quickly and I don't have time to run through the entire python program again.
+This python script specifically deals with scraping the years 2010-2013. These years format the data differently than the data 2014-2023 is formatted. This code scrapes the HTML accordingly.
+
+### analysis.py
+
+This script was created to keep track of how fast the scraper was scraping data. Additionally, as new versions of the code are updated, this script keeps track of how long it took, on average, to scrape income limits for each county, state, and year. Through analyzing this data, I have been able to tell when the greatest loss of speed occurs and have been able to optimize the scraper.
