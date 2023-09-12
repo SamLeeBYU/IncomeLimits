@@ -107,7 +107,7 @@ def measure_time(start_time, threshold=10.1):
     counting = True
     while counting and not scraper_.getDataScraped():
         current = time.perf_counter() - start_time
-        print(current)
+        #print(current)
         if current >= threshold:
             indices = DataScraper.get_indices()
 
@@ -352,7 +352,8 @@ class scraper:
             try:
                 NoData = False
                 try:
-                    WebDriverWait(driver, 10).until(EC.text_to_be_present_in_element((By.CSS_SELECTOR, 'td'), ','))
+                    #Wait up to 8 seconds to see if the data is loaded in the table. Otherwise, assume NoData (the scraper won't read the table)
+                    WebDriverWait(driver, 8).until(EC.text_to_be_present_in_element((By.CSS_SELECTOR, 'td'), ','))
                 except Exception as e:
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
                     if len(soup.find_all("td")) <= 0:
@@ -367,13 +368,13 @@ class scraper:
                 if i == len(options)-1:
                     #Make sure we parse the data for the last county and save it
                     if year >= 2014:
-                        DataScraper.parseData(year, countyName, html, driver, delay=delay, save=True)
+                        DataScraper.parseData(year, countyName, html, driver, delay=delay, save=True, NoData=NoData)
                     elif year in range(2010, 2013+1):
                         premodern.parseData(year, countyName, html, driver, delay=delay, save=True, NoData=NoData)
                 else:
                     if year >= 2014:
                         #Outsource the data to our DataScraper.py function
-                        DataScraper.parseData(year, countyName, html, driver, delay=delay)
+                        DataScraper.parseData(year, countyName, html, driver, delay=delay, NoData=NoData)
                     elif year in range(2010, 2013+1):
                         premodern.parseData(year, countyName, html, driver, delay=delay, NoData=NoData)
 
@@ -503,6 +504,7 @@ class main:
     def __init__(self, start, end):
         self.start = start
         self.end = end
+        self.start_time = time.perf_counter()
 
     def matchURL(self, year):
         return "https://www.huduser.gov/portal/datasets/il.html#"
@@ -516,7 +518,7 @@ class main:
                 for thread in THREADS:
                     thread.join()
                 del SCRAPERS[index]
-                SCRAPERS.append(scraper(time.perf_counter()))
+                SCRAPERS.append(scraper(self.start_time))
                 indices = DataScraper.get_indices()
                 FLAG = False
                 SCRAPERS[0].start_at(indices["year"], self.end, self.matchURL(indices["year"]), indices["state"],  indices["county"], freeze=True, delay=self.delay)
@@ -531,21 +533,23 @@ class main:
         self.delay = delay
         self.start = starting_year
         self.end = ending_year
-        SCRAPERS.append(scraper(time.perf_counter()))
+        SCRAPERS.append(scraper(self.start_time))
         SCRAPERS[0].start_at(starting_year, ending_year, self.matchURL(self.start), state, county, freeze=freeze, delay=self.delay)
         self.scrape_limits(0)
 
     def run(self, delay=False):
         self.delay = delay
-        SCRAPERS.append(scraper(time.perf_counter()))
+        SCRAPERS.append(scraper(self.start_time))
         SCRAPERS[0].start_at(self.start, self.end, self.matchURL(self.start), 0, 0, freeze=True, delay=self.delay)
         self.scrape_limits(0)
 
 program = main(start=2023, end=2010)
 
 if __name__ == "__main__":
-    #program.start_at(2013, 2010, program.matchURL(2016), 53, 10, freeze=True)
-    program.run(delay=False)
+    program.start_at(2015, 2010, program.matchURL(2016), 22, 0, freeze=True)
+    #program.run(delay=False)
+
+#NoData at program.start_at(2015, 2010, program.matchURL(2016), 19, 94, freeze=True)
 
 #Use these in the DOM for finding the index of the state and counties:
 # document.getElementsByName("STATES")[0].getElementsByTagName("option")[38]

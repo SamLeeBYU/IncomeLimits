@@ -61,7 +61,7 @@ def catch_data(data):
     print("End of Phase 3.")
 
 
-def parseData(year, county, html, driver, delay=False, save=False):
+def parseData(year, county, html, driver, delay=False, save=False, NoData=False):
 
     print(f"Reading data for {county}...")
 
@@ -99,26 +99,35 @@ def parseData(year, county, html, driver, delay=False, save=False):
 
     #Here's all the data we need for every iteration (in order to complete the table above)
     county_data = clean(county, type="county")
-    msa = clean(soup.find_all(class_ = "whole")[0].text, type="MSA")
-    median = clean(soup.find_all(class_ = "whole")[1].text, type="price")
+    msa = ""
+    median = ""
+    if not NoData:
+        msa = clean(soup.find_all(class_ = "whole")[0].text, type="MSA")
+        median = clean(soup.find_all(class_ = "whole")[1].text, type="price")
+    else:
+        msa = clean(soup.select("p > strong")[1].text, type="MSA")
 
     #Retrieve the income Limits
-    table = soup.find_all(class_ = "sum")[0]
-    rows = table.find_all("tr")
-
     incomes = {"Very Low Income Limits": [], "Extremely Low Income Limits": [], "Low Income Limits": []}
+    if not NoData:
+        table = soup.find_all(class_ = "sum")[0]
+        rows = table.find_all("tr")
 
-    #loop through all the td tags and add the prices (as doubles) to our python dictionary
-    for i in range(2, len(rows)):
-        limits = rows[i].find_all("td")
-        for j in range(0, len(limits)):
-            if i == 2:
-                incomes["Very Low Income Limits"].append(clean(limits[j].text, type="price"))
-            elif i == 3:
-                incomes["Extremely Low Income Limits"].append(clean(limits[j].text, type="price"))
-            elif i == 4:
-                incomes["Low Income Limits"].append(clean(limits[j].text, type="price"))
-    incomes["Very Low Income Limits"] = incomes["Very Low Income Limits"][1:] #exclude the first element because it groups the <td> from the median into this array
+        #loop through all the td tags and add the prices (as doubles) to our python dictionary
+        for i in range(2, len(rows)):
+            limits = rows[i].find_all("td")
+            for j in range(0, len(limits)):
+                if i == 2:
+                    incomes["Very Low Income Limits"].append(clean(limits[j].text, type="price"))
+                elif i == 3:
+                    incomes["Extremely Low Income Limits"].append(clean(limits[j].text, type="price"))
+                elif i == 4:
+                    incomes["Low Income Limits"].append(clean(limits[j].text, type="price"))
+        incomes["Very Low Income Limits"] = incomes["Very Low Income Limits"][1:] #exclude the first element because it groups the <td> from the median into this array
+    else:
+        incomes["Very Low Income Limits"] = [""]*8
+        incomes["Extremely Low Income Limits"] = [""]*8
+        incomes["Low Income Limits"] = [""]*8
 
     #diagnostic data (now formatted into a table)
     # print(f"County = {county_data}")
