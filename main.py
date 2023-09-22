@@ -546,8 +546,8 @@ class main:
 program = main(start=2023, end=2010)
 
 if __name__ == "__main__":
-    program.start_at(2015, 2010, program.matchURL(2016), 22, 0, freeze=True)
-    #program.run(delay=False)
+    #program.start_at(2015, 2010, program.matchURL(2016), 22, 0, freeze=True)
+    program.run(delay=False)
 
 #NoData at program.start_at(2015, 2010, program.matchURL(2016), 19, 94, freeze=True)
 
