@@ -179,5 +179,5 @@ def save_progress():
     print()
 
 # incomeLimits = pandas.read_csv("IncomeLimits.csv")
-# incomeLimits = incomeLimits.drop_duplicates().reset_index()
+# incomeLimits = incomeLimits.drop_duplicates().reset_index(drop=True)
 # incomeLimits.to_csv("IncomeLimits2022-2016.csv", index=False)

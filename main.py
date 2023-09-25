@@ -40,6 +40,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import Select
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -50,6 +51,7 @@ import threading
 import time
 import datetime
 from bs4 import BeautifulSoup
+import urllib.parse
 
 import time
 import DataScraper
@@ -207,23 +209,38 @@ class scraper:
         print("Phase 2 - Bypassing Form 2")
         print("Selecting a state/territory...")
         print()
+        
+        selector = "select[name='statename']" if year in range(2007, 2009+1) else "select[name='STATES']"
+        states = driver.find_elements(By.CSS_SELECTOR, selector)[0]
 
-        states = driver.find_elements(By.CSS_SELECTOR, "select[name='STATES']")[0]
         #Index out of range error
         options = states.find_elements(By.TAG_NAME, "option")
 
         i = 0
 
         if self.FROZEN:
-            i = state        
+            i = state
 
-        #Make sure the option is visible before the "user" selects it
-        actions.move_to_element(options[i])
-        actions.perform()
+        stateName = options[i].text        
 
-        stateName = options[i].text
+        #Include support for scraping years 2007-2009
+        if year in range(2007, 2009+1):
+            #This is a dropdown menu where we have to manually select the state
+            dropdown = Select(states)
+            dropdown.select_by_index(i)
+            #We have to submit the form request to get the county data
+            submit_state = driver.find_element(By.CSS_SELECTOR, "input[value='Select State']")
+            submit_state.submit()
+        else:
+            #Otherwise, we can just scroll it into view for Selenium to click on it
 
-        while i < len(options)-1 and not self.FINISHED and not FLAG:
+            #Make sure the option is visible before the "user" selects it
+            actions.move_to_element(options[i])
+            actions.perform()
+
+        #int(year >= 2010) Is there because in years 2010-2023, the menu includes the U.S. metropolitan area in the list of options,
+        #Years 2007-2009 don't. In order to identify which state is the last state we're scraping, we have to take this into account.
+        while i < len(options)-int(year >= 2010) and not self.FINISHED and not FLAG:
             self.DataScraped = False
 
             #Time how long it takes for Selenium to move from one state to the next to run...
@@ -234,28 +251,43 @@ class scraper:
             THREADS[len(THREADS)-1].start()
 
             #Reestablish the dom elements to keep it from coming stale
-            states = driver.find_elements(By.CSS_SELECTOR, "select[name='STATES']")[0]
+            selector = "select[name='statename']" if year in range(2007, 2009+1) else "select[name='STATES']"
+            states = driver.find_elements(By.CSS_SELECTOR, selector)[0]
+
             #Index out of range for the states 
             options = states.find_elements(By.TAG_NAME, "option")
 
-            #Make sure the option is visible before the "user" selects it
-            actions.move_to_element(options[i])
-            actions.perform()
-
             stateName = options[i].text
+
+            #Include support for scraping years 2007-2009
+            if i > 0:
+                if year in range(2007, 2009+1):
+                    #This is a dropdown menu where we have to manually select the state
+                    dropdown = Select(states)
+                    dropdown.select_by_index(i)
+                    #We have to submit the form request to get the county data
+                    submit_state = driver.find_element(By.CSS_SELECTOR, "input[value='Select State']")
+                    submit_state.submit()
+                else:
+                    #Otherwise, we can just scroll it into view for Selenium to click on it
+
+                    #Make sure the option is visible before the "user" selects it
+                    actions.move_to_element(options[i])
+                    actions.perform()
 
             print("Fetching data for " + stateName + "...")
 
             if locate_execution_time(year, stateName) < 0:
                 EXECUTION_TIMES.append(time_vector(year, stateName))
 
-            #Select the option
-            driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
-            #Execute the website's own GetCounties() function to request the county list from the database
-            driver.execute_script("GetCounties();", states)
+            if year >= 2010:
+                #Select the option
+                driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
+                #Execute the website's own GetCounties() function to request the county list from the database
+                driver.execute_script("GetCounties();", states)
 
-            if delay:
-                time.sleep(VIEWTIME/3)
+                if delay:
+                    time.sleep(VIEWTIME/3)
 
             self.DataScraped = True
 
@@ -270,8 +302,8 @@ class scraper:
             THREADS[len(THREADS)-1].join()
             
             try: 
-                #Minus 2 because we do not need the U.S. Non-Metropolitan Median
-                if i == len(options)-2:
+                #Minus 2 (for years 2010+) because we do not need the U.S. Non-Metropolitan Median
+                if i == len(options)-1-int(year >= 2010):
                     self.last_state = True
                 self.phase_3(year, stateName, stateIndex=i, county=county, delay=delay)
             except Exception as e:
@@ -326,27 +358,43 @@ class scraper:
 
                 #Select the option
                 driver.execute_script("arguments[0].setAttribute('selected', 'true');", options[i])
-                #Execute the website's own GetCounties() function to request the county list from the database
-                driver.execute_script("CollectAreas();", counties)
+                
+                #Support for scraping data from 2007-2009
+                if year in range(2007, 2009+1):
+                    #2007 requires a different form submission
+                    form_action = f"{year}summary.odn" if year in range(2008, 2009+1) else f"{year}summary.odb"
+                    county_form = driver.find_element(By.CSS_SELECTOR, f"form[action='{form_action}']")
+                    hidden_attr = [input.get_attribute("value") for input in county_form.find_elements(By.TAG_NAME, "input")]
+                    #Essentially we're hacking the url instead of making selenium trying to click through the form elements
+                    driver.get(f"""https://www.huduser.gov/portal/datasets/il/il{year}/{form_action}?
+                                INPUTNAME={urllib.parse.quote(options[0].get_attribute('value'), safe='*').replace('%20', '+')}&
+                                selection_type={hidden_attr[0]}&
+                                stname={hidden_attr[1]}&
+                                statefp={hidden_attr[2]}&
+                                year={hidden_attr[3]}""".replace(' ', '').replace('\n', ''))
+                else:
+                    #Execute the website's own GetCounties() function to request the county list from the database
+                    driver.execute_script("CollectAreas();", counties)
 
             except:
                 print(f"The index was {i}")
                 print(f"Here's how many options there are: {len(options)}")
                 FLAG = True
 
-            if delay:
-                time.sleep(VIEWTIME/3)
+            if year >= 2010:
+                if delay:
+                    time.sleep(VIEWTIME/3)
 
-            #Submit the form after selecting the county
-            submit = driver.find_elements(By.CSS_SELECTOR, "input[name='SubmitButton']")[0]
+                #Submit the form after selecting the county
+                submit = driver.find_elements(By.CSS_SELECTOR, "input[name='SubmitButton']")[0]
 
-            submit.submit()
+                submit.submit()
 
-            #Final page with data
-            #We will read the page and send the HTML data to our DataScraper.py script
+                #Final page with data
+                #We will read the page and send the HTML data to our DataScraper.py script
 
-            if delay:
-                time.sleep(VIEWTIME)
+                if delay:
+                    time.sleep(VIEWTIME)
 
             #Wait for data to load before passing html to data parser
             try:
@@ -369,13 +417,13 @@ class scraper:
                     #Make sure we parse the data for the last county and save it
                     if year >= 2014:
                         DataScraper.parseData(year, countyName, html, driver, delay=delay, save=True, NoData=NoData)
-                    elif year in range(2010, 2013+1):
+                    elif year in range(2007, 2013+1):
                         premodern.parseData(year, countyName, html, driver, delay=delay, save=True, NoData=NoData)
                 else:
                     if year >= 2014:
                         #Outsource the data to our DataScraper.py function
                         DataScraper.parseData(year, countyName, html, driver, delay=delay, NoData=NoData)
-                    elif year in range(2010, 2013+1):
+                    elif year in range(2007, 2013+1):
                         premodern.parseData(year, countyName, html, driver, delay=delay, NoData=NoData)
 
                 self.DataScraped = True
@@ -543,10 +591,10 @@ class main:
         SCRAPERS[0].start_at(self.start, self.end, self.matchURL(self.start), 0, 0, freeze=True, delay=self.delay)
         self.scrape_limits(0)
 
-program = main(start=2023, end=2010)
+program = main(start=2009, end=2007)
 
 if __name__ == "__main__":
-    #program.start_at(2015, 2010, program.matchURL(2016), 22, 0, freeze=True)
+    #program.start_at(2007, 2007, program.matchURL(2016), 53, 0, freeze=True)
     program.run(delay=False)
 
 #NoData at program.start_at(2015, 2010, program.matchURL(2016), 19, 94, freeze=True)

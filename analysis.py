@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 
 class time_vector:
 
