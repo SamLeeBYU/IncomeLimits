@@ -32,7 +32,7 @@ This python script parses the HTML mess on the page once the table of data is fi
 
 ### premodern.py
 
-This python script specifically deals with scraping the years 2010-2013. These years format the data differently than the data 2014-2023 is formatted. This code scrapes the HTML accordingly.
+This python script specifically deals with scraping the years 2007-2013. These years format the data differently than the data 2014-2023 is formatted. This code scrapes the HTML accordingly.
 
 ### analysis.py
 
